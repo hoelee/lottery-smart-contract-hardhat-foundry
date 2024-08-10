@@ -6,26 +6,42 @@ const {
 } = require("../helper-hardhat-config");
 const { verify } = require("../utils/verify");
 
-const FUND_AMOUNT = ethers.utils.parseEther("1"); // 1 Ether, or 1e18 (10^18) Wei
-
 module.exports = async ({ getNamedAccounts, deployments }) => {
-    const { deploy, log } = deployments;
+    const { deploy, log, get } = deployments;
     const { deployer } = await getNamedAccounts();
     const chainId = network.config.chainId;
-    let vrfCoordinatorV2Address, subscriptionId, vrfCoordinatorV2Mock;
+    let vrfCoordinatorV2_5Address, subscriptionId, vrfCoordinatorV2_5Mock;
 
     if (chainId == 31337) {
-        // create VRFV2 Subscription
-        vrfCoordinatorV2Mock = await ethers.getContract("VRFCoordinatorV2Mock");
-        vrfCoordinatorV2Address = vrfCoordinatorV2Mock.address;
-        const transactionResponse = await vrfCoordinatorV2Mock.createSubscription();
-        const transactionReceipt = await transactionResponse.wait();
-        subscriptionId = transactionReceipt.events[0].args.subId;
+        const FUND_AMOUNT = ethers.utils.parseEther("1"); // 1 Ether, or 1e18 (10^18) Wei
+
+        // Mock Auto Create VRF V2.5 Subscription
+
+        /* // Deprecated 
+        //vrfCoordinatorV2_5Mock = await ethers.getContract("VRFCoordinatorV2Mock");
+        vrfCoordinatorV2_5Address = vrfCoordinatorV2_5Mock.address;
+        const transactionResponse = await vrfCoordinatorV2_5Mock.createSubscription();
+        */
+
+        vrfCoordinatorV2_5Mock = await get("VRFCoordinatorV2_5Mock");
+        vrfCoordinatorV2_5Address = vrfCoordinatorV2_5Mock.address;
+
+        // Get the contract instance at the retrieved address
+        const vrfCoordinatorV2_5MockInstance = await ethers.getContractAt(
+            "VRFCoordinatorV2_5Mock",
+            vrfCoordinatorV2_5Address,
+        );
+
+        // Create a subscription
+        const createSubTx = await vrfCoordinatorV2_5MockInstance.createSubscription();
+        const createSubReceipt = await createSubTx.wait(1);
+        subscriptionId = createSubReceipt.events[0].args.subId; // Keep as BigNumber
+
+        const formattedSubscriptionId = ethers.BigNumber.from(subscriptionId);
         // Fund the subscription
-        // Our mock makes it so we don't actually have to worry about sending fund
-        await vrfCoordinatorV2Mock.fundSubscription(subscriptionId, FUND_AMOUNT);
+        await vrfCoordinatorV2_5MockInstance.fundSubscription(formattedSubscriptionId, FUND_AMOUNT);
     } else {
-        vrfCoordinatorV2Address = networkConfig[chainId]["vrfCoordinatorV2"];
+        vrfCoordinatorV2_5Address = networkConfig[chainId]["vrfCoordinatorV2"];
         subscriptionId = networkConfig[chainId]["subscriptionId"];
     }
     const waitBlockConfirmations = developmentChains.includes(network.name)
@@ -34,24 +50,40 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 
     log("----------------------------------------------------");
     const arguments = [
-        vrfCoordinatorV2Address,
+        vrfCoordinatorV2_5Address,
         subscriptionId,
         networkConfig[chainId]["gasLane"],
         networkConfig[chainId]["keepersUpdateInterval"],
         networkConfig[chainId]["raffleEntranceFee"],
         networkConfig[chainId]["callbackGasLimit"],
     ];
+
+    // Actual Deploy Of the Smart Contract
     const raffle = await deploy("Raffle", {
         from: deployer,
         args: arguments,
         log: true,
-        waitConfirmations: waitBlockConfirmations,
+        waitConfirmations: waitBlockConfirmations || 1,
     });
 
     // Ensure the Raffle contract is a valid consumer of the VRFCoordinatorV2Mock contract.
+
     if (developmentChains.includes(network.name)) {
-        const vrfCoordinatorV2Mock = await ethers.getContract("VRFCoordinatorV2Mock");
-        await vrfCoordinatorV2Mock.addConsumer(subscriptionId, raffle.address);
+        /* // Deprecated
+        //const vrfCoordinatorV2_5Mock = await ethers.getContract("VRFCoordinatorV2Mock");
+        //await vrfCoordinatorV2_5Mock.addConsumer(subscriptionId, raffle.address);
+        */
+
+        vrfCoordinatorV2_5Mock = await get("VRFCoordinatorV2_5Mock");
+        vrfCoordinatorV2_5Address = vrfCoordinatorV2_5Mock.address;
+
+        // Get the contract instance at the retrieved address
+        const vrfCoordinatorV2_5MockInstance = await ethers.getContractAt(
+            "VRFCoordinatorV2_5Mock",
+            vrfCoordinatorV2_5Address,
+        );
+
+        vrfCoordinatorV2_5MockInstance.addConsumer(subscriptionId, raffle.address);
     }
 
     // Verify the deployment

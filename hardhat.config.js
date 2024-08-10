@@ -26,15 +26,15 @@ module.exports = {
     defaultNetwork: "hardhat",
     networks: {
         sepolia: {
+            chainId: 11155111,
             url: RPC_URL_SEPOLIA,
             accounts: [PRIVATE_KEY_SEPOLIA],
-            chainId: 11155111,
             blockConfirmation: 6,
         },
         ganache: {
+            chainId: 5777,
             url: RPC_URL_GANACHE,
             accounts: [PRIVATE_KEY_GANACHE],
-            chainId: 5777,
             blockConfirmation: 1,
         },
         localhost: {
