@@ -1,4 +1,4 @@
-const { network, ethers } = require("hardhat");
+const { network, ethers, deployments } = require("hardhat");
 const {
     networkConfig,
     developmentChains,
@@ -8,13 +8,13 @@ const { verify } = require("../utils/verify");
 
 module.exports = async ({ getNamedAccounts, deployments }) => {
     const { deploy, log, get } = deployments;
-    const { deployer } = await getNamedAccounts();
+    const { deployer, player } = await getNamedAccounts();
     const chainId = network.config.chainId;
     let vrfCoordinatorV2_5Address, subscriptionId, vrfCoordinatorV2_5Mock;
+    const FUND_AMOUNT = ethers.utils.parseEther("1"); // 1 Ether, or 1e18 (10^18) Wei
 
-    if (chainId == 31337) {
-        const FUND_AMOUNT = ethers.utils.parseEther("1"); // 1 Ether, or 1e18 (10^18) Wei
-
+    // 31337 is the chainId for localhost
+    if (developmentChains.includes(network.name)) {
         // Mock Auto Create VRF V2.5 Subscription
 
         /* // Deprecated 
@@ -37,9 +37,8 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
         const createSubReceipt = await createSubTx.wait(1);
         subscriptionId = createSubReceipt.events[0].args.subId; // Keep as BigNumber
 
-        const formattedSubscriptionId = ethers.BigNumber.from(subscriptionId);
         // Fund the subscription
-        await vrfCoordinatorV2_5MockInstance.fundSubscription(formattedSubscriptionId, FUND_AMOUNT);
+        await vrfCoordinatorV2_5MockInstance.fundSubscription(subscriptionId, FUND_AMOUNT);
     } else {
         vrfCoordinatorV2_5Address = networkConfig[chainId]["vrfCoordinatorV2"];
         subscriptionId = networkConfig[chainId]["subscriptionId"];
@@ -74,7 +73,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
         //await vrfCoordinatorV2_5Mock.addConsumer(subscriptionId, raffle.address);
         */
 
-        vrfCoordinatorV2_5Mock = await get("VRFCoordinatorV2_5Mock");
+        vrfCoordinatorV2_5Mock = await deployments.get("VRFCoordinatorV2_5Mock");
         vrfCoordinatorV2_5Address = vrfCoordinatorV2_5Mock.address;
 
         // Get the contract instance at the retrieved address
@@ -83,7 +82,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
             vrfCoordinatorV2_5Address,
         );
 
-        vrfCoordinatorV2_5MockInstance.addConsumer(subscriptionId, raffle.address);
+        await vrfCoordinatorV2_5MockInstance.addConsumer(subscriptionId, raffle.address);
     }
 
     // Verify the deployment

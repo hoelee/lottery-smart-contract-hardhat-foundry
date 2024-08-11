@@ -72,7 +72,9 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
 
     function enterRaffle() public payable {
         // require(msg.value > i_entranceFee, "ETH too less!");
-        if (msg.value < i_entranceFee) {
+        uint256 msgValue = msg.value;
+
+        if (msgValue < i_entranceFee) {
             revert Raffle__NotEnoughETHEntered();
         }
         if (s_raffleState != RaffleState.OPEN) {
@@ -239,5 +241,13 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
 
     function getRecentWinner() public view returns (address) {
         return s_recentWinner;
+    }
+
+    function getRaffleState() public view returns (RaffleState) {
+        return s_raffleState;
+    }
+
+    function getInterval() public view returns (uint256) {
+        return i_interval;
     }
 }
