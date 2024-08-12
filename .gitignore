@@ -11,9 +11,6 @@ coverage
 coverage.json
 typechain
 
-# don't push the environment vars!
-.env
-
 # Built application files
 .DS*
 *.apk
@@ -101,4 +98,21 @@ lint/tmp/
 
 gas-report.txt
 
-lib
+# Compiler files
+cache/
+out/
+
+# Ignores development broadcast logs
+!/broadcast
+/broadcast/*/31337/
+/broadcast/**/dry-run/
+/broadcast/
+
+# Docs
+docs/
+
+# Dotenv file
+.env
+
+# zkSync
+zkout/

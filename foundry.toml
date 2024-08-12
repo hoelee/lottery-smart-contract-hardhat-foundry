@@ -1,8 +1,14 @@
-# Foundry Configuration
-
-
 [profile.default]
 src = "contracts"
 out = "out"
 libs = ["lib"]
-remappings = ['@chainlink.=.contracts=/lib/chainlink-brownie-contracts/contracts/']
+
+remappings = [
+    '@chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/', 
+    '@solmate=lib/solmate/src/',
+    "@chainlink/=lib/chainlink/contracts/src/v0.8/",
+    "hardhat/=./contracts/"
+]
+
+
+[profile.test]
