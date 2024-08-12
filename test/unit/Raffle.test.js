@@ -13,11 +13,11 @@ const isDevelopment = developmentChains.includes(network.name);
     ? describe.skip
     : describe("Raffle Unit Test", function () {
           let addressMock, addressRaffle, addressDeployer, addressPlayer;
-          let raffle, vrfCoordinatorV2_5Mock, vrfCoordinatorV2_5Address, player;
+          let raffle, vrfCoordinatorV2_5Mock, namedAccounts, subscriptionId;
           let chainId, raffleEntranceFee, interval;
 
           beforeEach(async () => {
-              const namedAccounts = await getNamedAccounts();
+              namedAccounts = await getNamedAccounts();
               addressDeployer = namedAccounts.deployer;
               addressPlayer = namedAccounts.player;
               await deployments.fixture(["all"]);
@@ -30,6 +30,31 @@ const isDevelopment = developmentChains.includes(network.name);
                   addressMock,
               );
               raffle = await ethers.getContractAt("Raffle", addressRaffle);
+
+              // Add fund to Mock for fulfillRandomWords
+              const tx = await vrfCoordinatorV2_5Mock.createSubscription();
+              const txReceipt = await tx.wait(1);
+              subscriptionId = txReceipt.events[0].args.subId;
+              //0x8d03209e7b30987dddca60349de1dc942195aadc9d6c6b5ab324388762f3b57e
+              await vrfCoordinatorV2_5Mock.addConsumer(subscriptionId, raffle.address);
+
+              const FUND_AMOUNT = ethers.utils.parseEther("1"); // 1 Ether
+              await vrfCoordinatorV2_5Mock.fundSubscription(subscriptionId, FUND_AMOUNT);
+              // Retrieve subscription details
+              const subscription = await vrfCoordinatorV2_5Mock.getSubscription(subscriptionId);
+              // Verify if the consumer is added correctly
+              console.log(`Consumers: ${subscription.consumers}`); // Should now include raffle.address
+
+              // Verify the balance
+              const balance = subscription.balance;
+              console.log(`Subscription balance: ${ethers.utils.formatEther(balance)} Ether`);
+
+              // Assert the balance to ensure it matches the FUND_AMOUNT
+              assert.equal(
+                  balance.toString(),
+                  FUND_AMOUNT.toString(),
+                  "Subscription balance should match the fund amount",
+              );
 
               // raffle = await deployments.get("Raffle"); // Wrong, not the contract instance
               // raffle = await ethers.getContract("Raffle"); // With hardaht-ethers dependency override
@@ -53,12 +78,6 @@ const isDevelopment = developmentChains.includes(network.name);
 
           describe("enterRaffle", function () {
               it("should revert if not enough payment", async () => {
-                  /*
-                  const entranceFee = networkConfig[chainId]["raffleEntranceFee"];
-                  const entranceFeeString = ethers.utils.formatEther(entranceFee);
-                  const entranceFeeWei = ethers.utils.parseEther(entranceFeeString);
-                  const insufficientPayment = entranceFeeWei.sub(ethers.utils.parseEther("0.01")); // Set payment less than entrance fee
-                    */
                   const entranceFee = await raffle.getEntranceFee();
                   const entranceFeeString = ethers.utils.formatEther(entranceFee);
                   console.log(entranceFeeString); // 0.01
@@ -126,7 +145,8 @@ const isDevelopment = developmentChains.includes(network.name);
                   await network.provider.send("evm_increaseTime", [interval.toNumber() - 5]); // use a higher number here if this test fails
                   await network.provider.request({ method: "evm_mine", params: [] }); // Alternative to write
                   const { upkeepNeeded } = await raffle.callStatic.checkUpkeep("0x"); // upkeepNeeded = (timePassed && isOpen && hasBalance && hasPlayers)
-                  assert(!upkeepNeeded);
+
+                  assert.isFalse(upkeepNeeded);
               });
               it("returns true if enough time has passed, has players, eth, and is open", async () => {
                   await raffle.enterRaffle({ value: raffleEntranceFee });
@@ -178,6 +198,100 @@ const isDevelopment = developmentChains.includes(network.name);
                   await expect(
                       vrfCoordinatorV2_5Mock.fulfillRandomWords(0, raffle.address),
                   ).to.be.revertedWith("InvalidRequest");
+              });
+
+              // Complete Test
+              it("picks a winner, reset the raffle, and send money to the winner", async () => {
+                  const additionalEntrances = 3;
+                  const startingAccountIndex = 2; // deployer = 0, player = 1
+                  let accounts = await ethers.getSigners(); // Many accounts
+                  // getNamedAccounts() is not working here, because only 2 accounts are named
+
+                  for (
+                      let i = startingAccountIndex;
+                      i < startingAccountIndex + additionalEntrances;
+                      i++
+                  ) {
+                      const accountConnectedRaffle = await raffle.connect(accounts[i]);
+                      await accountConnectedRaffle.enterRaffle({ value: raffleEntranceFee });
+                  }
+                  const startingTimeStamp = await raffle.getLastTimeStamp();
+                  // This will be more important for our staging tests...
+                  await new Promise(async (resolve, reject) => {
+                      raffle.once("WinnerPicked", async () => {
+                          // event listener for WinnerPicked
+                          console.log("WinnerPicked event fired!");
+                          // assert throws an error if it fails, so we need to wrap
+                          // it in a try/catch so that the promise returns event
+                          // if it fails.
+                          try {
+                              // Now lets get the ending values...
+                              const recentWinner = await raffle.getRecentWinner();
+                              const raffleState = await raffle.getRaffleState();
+                              const winnerBalance = await accounts[2].getBalance();
+                              const endingTimeStamp = await raffle.getLastTimeStamp();
+                              await expect(raffle.getPlayer(0)).to.be.reverted;
+                              // Comparisons to check if our ending values are correct:
+                              assert.equal(recentWinner.toString(), accounts[2].address);
+                              assert.equal(raffleState, 0);
+                              assert.equal(
+                                  winnerBalance.toString(),
+                                  startingBalance // startingBalance + ( (raffleEntranceFee * additionalEntrances) + raffleEntranceFee )
+                                      .add(
+                                          raffleEntranceFee
+                                              .mul(additionalEntrances)
+                                              .add(raffleEntranceFee),
+                                      )
+                                      .toString(),
+                              );
+                              assert(endingTimeStamp > startingTimeStamp);
+                              resolve(); // if try passes, resolves the promise
+                          } catch (e) {
+                              reject(e); // if try fails, rejects the promise
+                          }
+                      });
+
+                      // kicking off the event by mocking the chainlink keepers and vrf coordinator
+                      try {
+                          const tx = await raffle.performUpkeep("0x");
+                          const txReceipt = await tx.wait(1);
+                          startingBalance = await accounts[2].getBalance();
+
+                          // Log subscription details
+                          const subscription =
+                              await vrfCoordinatorV2_5Mock.getSubscription(subscriptionId);
+                          const balance = subscription.balance;
+                          const owner = subscription.owner;
+                          const consumers = subscription.consumers;
+
+                          console.log(`Subscription ID: ${subscriptionId}`);
+                          console.log(`Subscription Owner: ${owner}`);
+                          console.log(
+                              `Subscription Balance: ${ethers.utils.formatEther(balance)} ETH`,
+                          );
+                          console.log(`Consumers: ${consumers}`); // This should include your Raffle contract address
+
+                          // Verify the Raffle contract address matches the consumer
+                          assert(
+                              consumers.includes(raffle.address),
+                              "Raffle contract not authorized as a consumer!",
+                          );
+
+                          await vrfCoordinatorV2_5Mock.fulfillRandomWords(
+                              txReceipt.events[1].args.requestId,
+                              raffle.address,
+                          );
+
+                          // Log post-fulfillment details
+                          const updatedSubscription =
+                              await vrfCoordinatorV2_5Mock.getSubscription(subscriptionId);
+                          console.log(
+                              `Updated Subscription Balance: ${ethers.utils.formatEther(updatedSubscription.balance)} ETH`,
+                          );
+                      } catch (e) {
+                          reject(e);
+                      }
+                  });
               });
           });
       });
