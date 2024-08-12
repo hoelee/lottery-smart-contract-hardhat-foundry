@@ -6,8 +6,6 @@ const {
     VERIFICATION_BLOCK_CONFIRMATIONS,
 } = require("../../helper-hardhat-config");
 
-const isDevelopment = developmentChains.includes(network.name);
-
 // Run on development chain
 !developmentChains.includes(network.name)
     ? describe.skip
@@ -29,8 +27,15 @@ const isDevelopment = developmentChains.includes(network.name);
                   "VRFCoordinatorV2_5Mock",
                   addressMock,
               );
-              raffle = await ethers.getContractAt("Raffle", addressRaffle);
+              raffle = await ethers.getContractAt("Raffle", addressRaffle); // Default
 
+              //raffle = await ethers.getContractAt("Raffle", addressPlayer);
+              //raffle = await raffle.connect(addressPlayer); // Connect the player to the Raffle contract
+
+              //raffleContract = await ethers.getContract("Raffle"); // Returns a new connection to the Raffle contract
+              // raffle = raffleContract.connect(addressPlayer); // Returns a new instance of the Raffle contract connected to player
+
+              /*
               // Add fund to Mock for fulfillRandomWords
               const tx = await vrfCoordinatorV2_5Mock.createSubscription();
               const txReceipt = await tx.wait(1);
@@ -55,6 +60,7 @@ const isDevelopment = developmentChains.includes(network.name);
                   FUND_AMOUNT.toString(),
                   "Subscription balance should match the fund amount",
               );
+              */
 
               // raffle = await deployments.get("Raffle"); // Wrong, not the contract instance
               // raffle = await ethers.getContract("Raffle"); // With hardaht-ethers dependency override
@@ -187,16 +193,44 @@ const isDevelopment = developmentChains.includes(network.name);
           });
 
           describe("fulfillRandomWords", function () {
+              let subscriptionId;
               beforeEach(async () => {
+                  //raffle = await raffle.connect(addressPlayer); // Test
                   await raffle.enterRaffle({ value: raffleEntranceFee });
                   await network.provider.send("evm_increaseTime", [interval.toNumber() + 1]);
                   await network.provider.send("evm_mine", []);
+
+                  const subIdArr = await vrfCoordinatorV2_5Mock.getActiveSubscriptionIds(0, 100);
+                  subscriptionId = subIdArr[0];
+                  //subscriptionId =
+                  //    "91765082012550290938840732836101412737423938684399204465191383082124961026867";
+
+                  /*
+                  vrfCoordinatorV2_5Address = vrfCoordinatorV2_5Mock.address;
+                  const transactionResponse = await vrfCoordinatorV2_5Mock.createSubscription();
+                  const createSubReceipt = await transactionResponse.wait(1);
+                  subscriptionId = createSubReceipt.events[0].args.subId; // Keep as BigNumber
+                  await vrfCoordinatorV2_5Mock.fundSubscription(subscriptionId, FUND_AMOUNT);
+                  const FUND_AMOUNT = ethers.utils.parseEther("1"); // 1 Ether, or 1e18 (10^18) Wei
+              
+
+                  const subscription = await vrfCoordinatorV2_5Mock.getSubscription(subscriptionId);
+                  const balance = subscription.balance;
+                  console.log(`Subscription balance: ${ethers.utils.formatEther(balance)} Ether`);
+                  console.log(`Consumers: ${subscription.consumers}`); // Should now include raffle.address
+                  */
+
+                  //console.log(subscriptionId);
               });
 
               it("can only be called after performUpKeep", async () => {
                   const requestId = 0; // Not using
                   await expect(
                       vrfCoordinatorV2_5Mock.fulfillRandomWords(0, raffle.address),
+                  ).to.be.revertedWith("InvalidRequest");
+
+                  await expect(
+                      vrfCoordinatorV2_5Mock.fulfillRandomWords(1, raffle.address), // reverts if not fulfilled
                   ).to.be.revertedWith("InvalidRequest");
               });
 
@@ -218,8 +252,8 @@ const isDevelopment = developmentChains.includes(network.name);
                   const startingTimeStamp = await raffle.getLastTimeStamp();
                   // This will be more important for our staging tests...
                   await new Promise(async (resolve, reject) => {
+                      // just a promise to handle the event listener
                       raffle.once("WinnerPicked", async () => {
-                          // event listener for WinnerPicked
                           console.log("WinnerPicked event fired!");
                           // assert throws an error if it fails, so we need to wrap
                           // it in a try/catch so that the promise returns event
@@ -250,14 +284,12 @@ const isDevelopment = developmentChains.includes(network.name);
                               reject(e); // if try fails, rejects the promise
                           }
                       });
-
                       // kicking off the event by mocking the chainlink keepers and vrf coordinator
                       try {
                           const tx = await raffle.performUpkeep("0x");
                           const txReceipt = await tx.wait(1);
                           startingBalance = await accounts[2].getBalance();
 
-                          // Log subscription details
                           const subscription =
                               await vrfCoordinatorV2_5Mock.getSubscription(subscriptionId);
                           const balance = subscription.balance;
@@ -277,16 +309,17 @@ const isDevelopment = developmentChains.includes(network.name);
                               "Raffle contract not authorized as a consumer!",
                           );
 
-                          await vrfCoordinatorV2_5Mock.fulfillRandomWords(
-                              txReceipt.events[1].args.requestId,
-                              raffle.address,
-                          );
-
                           // Log post-fulfillment details
                           const updatedSubscription =
                               await vrfCoordinatorV2_5Mock.getSubscription(subscriptionId);
                           console.log(
                               `Updated Subscription Balance: ${ethers.utils.formatEther(updatedSubscription.balance)} ETH`,
+                          );
+
+                          // Here cannot run, always InsufficientBalance()
+                          await vrfCoordinatorV2_5Mock.fulfillRandomWords(
+                              txReceipt.events[1].args.requestId,
+                              raffle.address,
                           );
                       } catch (e) {
                           reject(e);

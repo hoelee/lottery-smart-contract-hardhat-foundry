@@ -1,13 +1,27 @@
-// SPDX-License-Identifier: Unlicense
-
 /*
-Raffle Contract
-Enter the lottery (paying some amount)
-Pick a random winner (verifiably random)
-Winner to be selected every X minutes -> completely automated
-Chainlink Oracle -> Randomness, Automated Execution (Chainlink Keeper)
+    Layout of Contract:
+    version
+    imports
+    errors
+    interfaces, libraries, contracts
+    Type declarations
+    State variables
+    Events
+    Modifiers
+    Functions
+
+    Layout of Functions:
+    constructor
+    receive function (if exists)
+    fallback function (if exists)
+    external
+    public
+    internal
+    private
+    view & pure functions
 */
-pragma solidity ^0.8.7;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
 
 ///// UPDATE IMPORTS TO V2.5 /////
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
@@ -22,6 +36,16 @@ error Raffle__RaffleNotOpen();
 error Raffle__IntervalNotPassed();
 error Raffle__UpkeepNotNeeded(uint256 currentBalance, uint256 numPlayers, uint256 raffleState);
 
+/**
+ * @title Automatic Raffle Contract
+ * @author Hoelee
+ * @notice This contract is a lottery contract that allows users to enter the lottery by paying a fee.
+ * @dev Raffle Contract
+        Enter the lottery (paying some amount)
+        Pick a random winner (verifiably random)
+        Winner to be selected every X minutes -> completely automated
+        Chainlink Oracle -> Randomness, Automated Execution (Chainlink Keeper)
+ */
 contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
     /* Type declarations */
     enum RaffleState {
@@ -131,18 +155,17 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
         // Encode ExtraArgs to bytes
         bytes memory extraArgs = VRFV2PlusClient._argsToBytes(extraArgsV1);
 
-        // Prepare the RandomWordsRequest structure
-        VRFV2PlusClient.RandomWordsRequest memory req = VRFV2PlusClient.RandomWordsRequest({
-            keyHash: i_gasLane,
-            subId: i_subscriptionId,
-            requestConfirmations: REQUEST_CONFIRMATIONS,
-            callbackGasLimit: i_callbackGasLimit,
-            numWords: NUM_WORDS,
-            extraArgs: extraArgs
-        });
-
         // Request random words using the prepared structure
-        requestId = i_vrfCoordinator.requestRandomWords(req);
+        requestId = i_vrfCoordinator.requestRandomWords(
+            VRFV2PlusClient.RandomWordsRequest({
+                keyHash: i_gasLane,
+                subId: i_subscriptionId,
+                requestConfirmations: REQUEST_CONFIRMATIONS,
+                callbackGasLimit: i_callbackGasLimit,
+                numWords: NUM_WORDS,
+                extraArgs: extraArgs
+            })
+        );
         emit RequestedRaffleWinner(requestId);
     }
 

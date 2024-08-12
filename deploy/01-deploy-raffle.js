@@ -18,11 +18,6 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
         // Mock Auto Create VRF V2.5 Subscription
 
         /* // Deprecated 
-        //vrfCoordinatorV2_5Mock = await ethers.getContract("VRFCoordinatorV2Mock");
-        vrfCoordinatorV2_5Address = vrfCoordinatorV2_5Mock.address;
-        const transactionResponse = await vrfCoordinatorV2_5Mock.createSubscription();
-        */
-
         vrfCoordinatorV2_5Mock = await get("VRFCoordinatorV2_5Mock");
         vrfCoordinatorV2_5Address = vrfCoordinatorV2_5Mock.address;
 
@@ -30,15 +25,23 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
         const vrfCoordinatorV2_5MockInstance = await ethers.getContractAt(
             "VRFCoordinatorV2_5Mock",
             vrfCoordinatorV2_5Address,
-        );
+        );        
+        */
 
         // Create a subscription
-        const createSubTx = await vrfCoordinatorV2_5MockInstance.createSubscription();
-        const createSubReceipt = await createSubTx.wait(1);
+        vrfCoordinatorV2_5Mock = await ethers.getContract("VRFCoordinatorV2_5Mock");
+        vrfCoordinatorV2_5Address = vrfCoordinatorV2_5Mock.address;
+        const transactionResponse = await vrfCoordinatorV2_5Mock.createSubscription();
+        const createSubReceipt = await transactionResponse.wait(1);
         subscriptionId = createSubReceipt.events[0].args.subId; // Keep as BigNumber
 
         // Fund the subscription
-        await vrfCoordinatorV2_5MockInstance.fundSubscription(subscriptionId, FUND_AMOUNT);
+        await vrfCoordinatorV2_5Mock.fundSubscription(subscriptionId, FUND_AMOUNT);
+
+        const subscription = await vrfCoordinatorV2_5Mock.getSubscription(subscriptionId);
+
+        const balance = subscription.balance;
+        console.log(`Subscription balance: ${ethers.utils.formatEther(balance)} Ether`);
     } else {
         vrfCoordinatorV2_5Address = networkConfig[chainId]["vrfCoordinatorV2"];
         subscriptionId = networkConfig[chainId]["subscriptionId"];
@@ -68,11 +71,14 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
     // Ensure the Raffle contract is a valid consumer of the VRFCoordinatorV2Mock contract.
 
     if (developmentChains.includes(network.name)) {
-        /* // Deprecated
-        //const vrfCoordinatorV2_5Mock = await ethers.getContract("VRFCoordinatorV2Mock");
-        //await vrfCoordinatorV2_5Mock.addConsumer(subscriptionId, raffle.address);
-        */
+        const vrfCoordinatorV2_5Mock = await ethers.getContract("VRFCoordinatorV2_5Mock");
+        await vrfCoordinatorV2_5Mock.addConsumer(subscriptionId, raffle.address);
 
+        // Verify if the consumer is added correctly
+        const subscription = await vrfCoordinatorV2_5Mock.getSubscription(subscriptionId);
+        console.log(`Consumers: ${subscription.consumers}`); // Should now include raffle.address
+
+        /* // Deprecated
         vrfCoordinatorV2_5Mock = await deployments.get("VRFCoordinatorV2_5Mock");
         vrfCoordinatorV2_5Address = vrfCoordinatorV2_5Mock.address;
 
@@ -83,6 +89,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
         );
 
         await vrfCoordinatorV2_5MockInstance.addConsumer(subscriptionId, raffle.address);
+        */
     }
 
     // Verify the deployment
