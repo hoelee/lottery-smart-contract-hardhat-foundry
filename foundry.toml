@@ -4,11 +4,16 @@ out = "out"
 libs = ["lib"]
 
 remappings = [
+    "foundry-devops/=lib/foundry-devops/src/",
     '@chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/', 
     '@solmate=lib/solmate/src/',
-    "@chainlink/=lib/chainlink/contracts/src/v0.8/",
-    "hardhat/=./contracts/"
+    "@chainlink/=lib/chainlink/contracts/src/v0.8/"
 ]
 
+[etherscan]
+sepolia = {key = "${ETHERSCAN_API_KEY}"}
 
-[profile.test]
+[rpc_endpoints]
+sepolia = "${SEPOLIA_RPC_URL}"
+
+# See more config options https://github.com/foundry-rs/foundry/tree/master/config
