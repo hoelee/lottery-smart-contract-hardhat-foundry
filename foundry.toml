@@ -2,6 +2,7 @@
 src = "contracts"
 out = "out"
 libs = ["lib"]
+#evm_version = "berlin" # for zksync only
 
 remappings = [
     "foundry-devops/=lib/foundry-devops/src/",
