@@ -44,7 +44,7 @@ contract CreateSubscription is Script {
     forge script script/Interactions.s.sol:FundSubscription --rpc-url $SEPOLIA_RPC_URL --broadcast --myAccount hoelee
  */
 contract FundSubscription is CodeConstants, Script {
-    uint96 public constant FUND_AMOUNT = 0.5 ether;
+    uint96 public constant FUND_AMOUNT = 3 ether;
 
     function fundSubscriptionUsingConfig() public {
         HelperConfig helperConfig = new HelperConfig();

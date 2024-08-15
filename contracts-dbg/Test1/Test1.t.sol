@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >= 0.4.21 < 0.9.0;
+pragma solidity >=0.4.21 <0.9.0;
+
+import {DeployRaffle} from "script/DeployRaffle.s.sol";
 
 contract DbgEntry {
     event EvmPrint(string);
@@ -14,13 +16,14 @@ contract DbgEntry {
         // or interact with an existing deployment by specifying a `fork` url in `dbg.project.json`
         // eg:
         //  ICounter counter = ICounter(0x12345678.....)
-        //  counter.increment(); 
+        //  counter.increment();
         //
         // If you have correct symbols (`artifacts`) for the deployed contract, you can step-into calls.
 
         uint256 abc = 123;
         uint256 def = abc + 5;
 
+        DeployRaffle deployRaffle = new DeployRaffle();
         emit EvmPrint("DbgEntry return");
     }
 }
