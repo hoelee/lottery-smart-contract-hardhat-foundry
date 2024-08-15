@@ -64,3 +64,6 @@ $ forge --help
 $ anvil --help
 $ cast --help
 ```
+
+
+cast --to-base 0x714c2 dec

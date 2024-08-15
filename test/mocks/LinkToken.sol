@@ -28,11 +28,7 @@ contract LinkToken is ERC20 {
      * @param _value The amount to be transferred.
      * @param _data The extra data to be passed to the receiving contract.
      */
-    function transferAndCall(
-        address _to,
-        uint256 _value,
-        bytes memory _data
-    ) public virtual returns (bool success) {
+    function transferAndCall(address _to, uint256 _value, bytes memory _data) public virtual returns (bool success) {
         super.transfer(_to, _value);
         // emit Transfer(msg.sender, _to, _value, _data);
         emit Transfer(msg.sender, _to, _value, _data);

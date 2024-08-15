@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {LinkToken} from "../test/mocks/LinkToken.sol";
 import {Script, console2} from "forge-std/Script.sol";
 import {VRFCoordinatorV2_5Mock} from "@chainlink/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
+import {LinkToken} from "../test/mocks/LinkToken.sol";
 
 abstract contract CodeConstants {
     uint96 public MOCK_BASE_FEE = 0.25 ether;
@@ -35,7 +35,7 @@ contract HelperConfig is CodeConstants, Script {
         uint32 callbackGasLimit;
         address vrfCoordinatorV2_5;
         address link;
-        address account;
+        address myAccount;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -81,20 +81,21 @@ contract HelperConfig is CodeConstants, Script {
             callbackGasLimit: 500000, // 500,000 gas
             vrfCoordinatorV2_5: 0x271682DEB8C4E0901D1a1550aD2e64D568E69909,
             link: 0x514910771AF9Ca656af840dff83E8264EcF986CA,
-            account: 0x643315C9Be056cDEA171F4e7b2222a4ddaB9F88D
+            myAccount: 0x643315C9Be056cDEA171F4e7b2222a4ddaB9F88D
         });
     }
 
     function getSepoliaEthConfig() public pure returns (NetworkConfig memory sepoliaNetworkConfig) {
         sepoliaNetworkConfig = NetworkConfig({
-            subscriptionId: 0, // If left as 0, our scripts will create one!
+            // If left as 0, our scripts will create one!
+            subscriptionId: 54852953177758767717007928774683925681326589777506065303357242036079980899870,
             gasLane: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae,
             automationUpdateInterval: 30, // 30 seconds
-            raffleEntranceFee: 0.01 ether,
+            raffleEntranceFee: 0.01 ether, // 1e16
             callbackGasLimit: 500000, // 500,000 gas
             vrfCoordinatorV2_5: 0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B,
-            link: 0x779877A7B0D9E8603169DdbD7836e478b4624789,
-            account: 0x643315C9Be056cDEA171F4e7b2222a4ddaB9F88D
+            link: 0x779877A7B0D9E8603169DdbD7836e478b4624789, // This is fixed LINK token address
+            myAccount: 0xc9445E993dAeA4bA3F1FE1080F0F6f8c46b4d967 // my address with supplied private key
         });
     }
 
@@ -112,6 +113,7 @@ contract HelperConfig is CodeConstants, Script {
             MOCK_GAS_PRICE_LINK,
             MOCK_WEI_PER_UINT_LINK
         );
+
         LinkToken link = new LinkToken();
         uint256 subscriptionId = vrfCoordinatorV2_5Mock.createSubscription();
         vm.stopBroadcast();
@@ -124,9 +126,9 @@ contract HelperConfig is CodeConstants, Script {
             callbackGasLimit: 500000, // 500,000 gas
             vrfCoordinatorV2_5: address(vrfCoordinatorV2_5Mock),
             link: address(link),
-            account: FOUNDRY_DEFAULT_SENDER
+            myAccount: FOUNDRY_DEFAULT_SENDER
         });
-        vm.deal(localNetworkConfig.account, 100 ether);
+        vm.deal(localNetworkConfig.myAccount, 100 ether);
         return localNetworkConfig;
     }
 }

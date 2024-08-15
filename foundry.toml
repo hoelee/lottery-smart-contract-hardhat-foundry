@@ -3,6 +3,10 @@ src = "contracts"
 out = "out"
 libs = ["lib"]
 #evm_version = "berlin" # for zksync only
+fs_permissions = [
+    {access = "read", path="./broadcast"},
+    {access = "read", path="./reports"},
+]
 
 remappings = [
     "foundry-devops/=lib/foundry-devops/src/",
@@ -16,5 +20,9 @@ sepolia = {key = "${ETHERSCAN_API_KEY}"}
 
 [rpc_endpoints]
 sepolia = "${SEPOLIA_RPC_URL}"
+
+[fuzz]
+runs = 256 # Foundry will run 256 fuzz tests
+
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config

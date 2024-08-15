@@ -28,25 +28,26 @@ import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFCo
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 import "@chainlink/contracts/src/v0.8/vrf/dev/interfaces/IVRFCoordinatorV2Plus.sol";
 import "@chainlink/contracts/src/v0.8/automation/interfaces/AutomationCompatibleInterface.sol";
-//import "hardhat/console.sol";
 
-error Raffle__NotEnoughETHEntered();
-error Raffle__TransferFailed();
-error Raffle__RaffleNotOpen();
-error Raffle__IntervalNotPassed();
-error Raffle__UpkeepNotNeeded(uint256 currentBalance, uint256 numPlayers, uint256 raffleState);
+//import "hardhat/console.sol";
 
 /**
  * @title Automatic Raffle Contract
  * @author Hoelee
  * @notice This contract is a lottery contract that allows users to enter the lottery by paying a fee.
  * @dev Raffle Contract
-        Enter the lottery (paying some amount)
-        Pick a random winner (verifiably random)
-        Winner to be selected every X minutes -> completely automated
-        Chainlink Oracle -> Randomness, Automated Execution (Chainlink Keeper)
+ *         Enter the lottery (paying some amount)
+ *         Pick a random winner (verifiably random)
+ *         Winner to be selected every X minutes -> completely automated
+ *         Chainlink Oracle -> Randomness, Automated Execution (Chainlink Keeper)
  */
 contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
+    error Raffle__NotEnoughETHEntered();
+    error Raffle__TransferFailed();
+    error Raffle__RaffleNotOpen();
+    error Raffle__IntervalNotPassed();
+    error Raffle__UpkeepNotNeeded(uint256 currentBalance, uint256 numPlayers, uint256 raffleState);
+
     /* Type declarations */
     enum RaffleState {
         OPEN,
@@ -71,8 +72,8 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
     uint256 private immutable i_entranceFee;
 
     /* Event */
-    event RequestedRaffleWinner(uint256 indexed requestId);
     event RaffleEnter(address indexed player);
+    event RequestedRaffleWinner(uint256 indexed requestId);
     event WinnerPicked(address indexed player);
 
     /* Function */
@@ -166,7 +167,7 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
                 extraArgs: extraArgs
             })
         );
-        emit RequestedRaffleWinner(requestId);
+        emit RequestedRaffleWinner(requestId); // Redundant, because i_vrfCoordinator do it same
     }
 
     /**
@@ -177,6 +178,7 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
      * 2. The lottery is open.
      * 3. The contract has ETH.
      * 4. Implicity, your subscription is funded with LINK.
+     * @return upkeepNeeded - true will call performUpKeep automatically
      */
     function checkUpkeep(
         bytes memory /* checkData */
@@ -230,8 +232,15 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
         emit RequestedRaffleWinner(requestId);
     }
 
+    /*
+     * CEI: Check, Effects, Interactions Pattern
+            Check : Conditional - eg: Ensure is the raffle state is open
+            Effects : Internal Contract State
+            Interactions : External Contract Interactions
+     * @dev chainlink VRF callback after run vrfCoordinator.requestRandomWords
+     */
     function fulfillRandomWords(
-        uint256 /* requestId */,
+        uint256, // requestId
         uint256[] calldata randomWords
     ) internal override {
         // s_players size 10
@@ -244,14 +253,15 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
         address payable recentWinner = s_players[indexOfWinner];
         s_recentWinner = recentWinner;
         s_players = new address payable[](0);
-        s_raffleState = RaffleState.OPEN;
         s_lastTimeStamp = block.timestamp;
+        s_raffleState = RaffleState.OPEN;
+        emit WinnerPicked(recentWinner);
+
         (bool success, ) = recentWinner.call{value: address(this).balance}("");
         // require(success, "Transfer failed");
         if (!success) {
             revert Raffle__TransferFailed();
         }
-        emit WinnerPicked(recentWinner);
     }
 
     function getEntranceFee() public view returns (uint256) {
