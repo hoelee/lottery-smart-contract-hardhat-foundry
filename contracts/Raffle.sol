@@ -27,7 +27,7 @@ pragma solidity ^0.8.19;
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 //import "@chainlink/contracts/src/v0.8/vrf/dev/interfaces/IVRFCoordinatorV2Plus.sol";
-import "@chainlink/contracts/src/v0.8/automation/interfaces/AutomationCompatibleInterface.sol";
+import {AutomationCompatibleInterface} from "@chainlink/contracts/src/v0.8/automation/interfaces/AutomationCompatibleInterface.sol";
 
 //import "hardhat/console.sol";
 
@@ -145,14 +145,6 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
         }
         s_raffleState = RaffleState.CALCULATING;
 
-        // Prepare the ExtraArgs structure
-        VRFV2PlusClient.ExtraArgsV1 memory extraArgsV1 = VRFV2PlusClient.ExtraArgsV1({
-            nativePayment: true // Set to true or false depending on your use case
-        });
-
-        // Encode ExtraArgs to bytes
-        bytes memory extraArgs = VRFV2PlusClient._argsToBytes(extraArgsV1);
-
         // Prepare the RandomWordsRequest structure
         VRFV2PlusClient.RandomWordsRequest memory req = VRFV2PlusClient.RandomWordsRequest({
             keyHash: i_gasLane,
@@ -160,14 +152,17 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
             requestConfirmations: REQUEST_CONFIRMATIONS,
             callbackGasLimit: i_callbackGasLimit,
             numWords: NUM_WORDS,
-            extraArgs: extraArgs
+            extraArgs: VRFV2PlusClient._argsToBytes(
+                // Set nativePayment to true to pay for VRF requests with Sepolia ETH instead of LINK
+                VRFV2PlusClient.ExtraArgsV1({nativePayment: false})
+            )
         });
 
         // The s_vrfCoordinator is from override VRFConsumerBaseV2Plus
         // Request random words using the prepared structure
         uint256 requestId = s_vrfCoordinator.requestRandomWords(req);
 
-        // Quiz... is this redundant?
+        // This is redundant, because i_vrfCoordinator do it same
         emit RequestedRaffleWinner(requestId);
     }
 
@@ -210,7 +205,7 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
 
         // Prepare the ExtraArgs structure
         VRFV2PlusClient.ExtraArgsV1 memory extraArgsV1 = VRFV2PlusClient.ExtraArgsV1({
-            nativePayment: true // Set to true or false depending on your use case
+            nativePayment: false // Set to true or false depending on your use case
         });
 
         // Encode ExtraArgs to bytes

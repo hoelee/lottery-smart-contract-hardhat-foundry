@@ -29,41 +29,6 @@ const {
               );
               raffle = await ethers.getContractAt("Raffle", addressRaffle); // Default
 
-              //raffle = await ethers.getContractAt("Raffle", addressPlayer);
-              //raffle = await raffle.connect(addressPlayer); // Connect the player to the Raffle contract
-
-              //raffleContract = await ethers.getContract("Raffle"); // Returns a new connection to the Raffle contract
-              // raffle = raffleContract.connect(addressPlayer); // Returns a new instance of the Raffle contract connected to player
-
-              /*
-              // Add fund to Mock for fulfillRandomWords
-              const tx = await vrfCoordinatorV2_5Mock.createSubscription();
-              const txReceipt = await tx.wait(1);
-              subscriptionId = txReceipt.events[0].args.subId;
-              //0x8d03209e7b30987dddca60349de1dc942195aadc9d6c6b5ab324388762f3b57e
-              await vrfCoordinatorV2_5Mock.addConsumer(subscriptionId, raffle.address);
-
-              const FUND_AMOUNT = ethers.utils.parseEther("1"); // 1 Ether
-              await vrfCoordinatorV2_5Mock.fundSubscription(subscriptionId, FUND_AMOUNT);
-              // Retrieve subscription details
-              const subscription = await vrfCoordinatorV2_5Mock.getSubscription(subscriptionId);
-              // Verify if the consumer is added correctly
-              console.log(`Consumers: ${subscription.consumers}`); // Should now include raffle.address
-
-              // Verify the balance
-              const balance = subscription.balance;
-              console.log(`Subscription balance: ${ethers.utils.formatEther(balance)} Ether`);
-
-              // Assert the balance to ensure it matches the FUND_AMOUNT
-              assert.equal(
-                  balance.toString(),
-                  FUND_AMOUNT.toString(),
-                  "Subscription balance should match the fund amount",
-              );
-              */
-
-              // raffle = await deployments.get("Raffle"); // Wrong, not the contract instance
-              // raffle = await ethers.getContract("Raffle"); // With hardaht-ethers dependency override
               chainId = network.config.chainId;
 
               raffleEntranceFee = await raffle.getEntranceFee();
@@ -202,25 +167,6 @@ const {
 
                   const subIdArr = await vrfCoordinatorV2_5Mock.getActiveSubscriptionIds(0, 100);
                   subscriptionId = subIdArr[0];
-                  //subscriptionId =
-                  //    "91765082012550290938840732836101412737423938684399204465191383082124961026867";
-
-                  /*
-                  vrfCoordinatorV2_5Address = vrfCoordinatorV2_5Mock.address;
-                  const transactionResponse = await vrfCoordinatorV2_5Mock.createSubscription();
-                  const createSubReceipt = await transactionResponse.wait(1);
-                  subscriptionId = createSubReceipt.events[0].args.subId; // Keep as BigNumber
-                  await vrfCoordinatorV2_5Mock.fundSubscription(subscriptionId, FUND_AMOUNT);
-                  const FUND_AMOUNT = ethers.utils.parseEther("1"); // 1 Ether, or 1e18 (10^18) Wei
-              
-
-                  const subscription = await vrfCoordinatorV2_5Mock.getSubscription(subscriptionId);
-                  const balance = subscription.balance;
-                  console.log(`Subscription balance: ${ethers.utils.formatEther(balance)} Ether`);
-                  console.log(`Consumers: ${subscription.consumers}`); // Should now include raffle.address
-                  */
-
-                  //console.log(subscriptionId);
               });
 
               it("can only be called after performUpKeep", async () => {
