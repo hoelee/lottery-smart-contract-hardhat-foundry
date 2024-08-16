@@ -55,6 +55,12 @@ contract HelperConfig is CodeConstants, Script {
     }
 
     function getConfig() public returns (NetworkConfig memory) {
+        console2.log(unicode"✨ HelperConfig:getConfig");
+        console2.log("  >>> chainId: ", block.chainid);
+        console2.log(
+            "  >>> localNetworkConfig.subscriptionId: ",
+            localNetworkConfig.subscriptionId
+        );
         return getConfigByChainId(block.chainid);
     }
 
@@ -88,7 +94,7 @@ contract HelperConfig is CodeConstants, Script {
     function getSepoliaEthConfig() public pure returns (NetworkConfig memory sepoliaNetworkConfig) {
         sepoliaNetworkConfig = NetworkConfig({
             // If left as 0, our scripts will create one!
-            subscriptionId: 54852953177758767717007928774683925681326589777506065303357242036079980899870,
+            subscriptionId: 0, //54852953177758767717007928774683925681326589777506065303357242036079980899870
             gasLane: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae,
             automationUpdateInterval: 30, // 30 seconds
             raffleEntranceFee: 0.01 ether, // 1e16
@@ -105,8 +111,10 @@ contract HelperConfig is CodeConstants, Script {
             return localNetworkConfig;
         }
 
-        console2.log(unicode"⚠️ You have deployed a mock conract!");
-        console2.log("Make sure this was intentional");
+        console2.log(
+            unicode"⚠️  HelperConfig: getOrCreateAnvilEthConfig - Deployed mock contract! ⚠️"
+        );
+        console2.log("  >>> Make sure this was intentional");
         vm.startBroadcast();
         VRFCoordinatorV2_5Mock vrfCoordinatorV2_5Mock = new VRFCoordinatorV2_5Mock(
             MOCK_BASE_FEE,
@@ -128,7 +136,7 @@ contract HelperConfig is CodeConstants, Script {
             link: address(link),
             myAccount: FOUNDRY_DEFAULT_SENDER
         });
-        vm.deal(localNetworkConfig.myAccount, 100 ether);
+        vm.deal(localNetworkConfig.myAccount, 100 ether); //0xDB8cFf278adCCF9E9b5da745B44E754fC4EE3C76
         return localNetworkConfig;
     }
 }

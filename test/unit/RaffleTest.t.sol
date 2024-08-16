@@ -30,8 +30,7 @@ contract RaffleTest is Test, CodeConstants {
     LinkToken link;
 
     address public PLAYER = makeAddr("player");
-    uint256 public constant STARTING_USER_BALANCE = 100 ether;
-    uint256 public constant STARTING_PLAYER_BALANCE = 10 ether;
+    uint256 public constant STARTING_USER_BALANCE = 10 ether;
     uint256 public constant LINK_BALANCE = 100 ether;
 
     function setUp() external {
@@ -48,6 +47,17 @@ contract RaffleTest is Test, CodeConstants {
         entranceFee = config.raffleEntranceFee;
         callbackGasLimit = config.callbackGasLimit;
         link = LinkToken(config.link);
+
+        vm.startPrank(msg.sender);
+        if (block.chainid == LOCAL_CHAIN_ID) {
+            link.mint(msg.sender, LINK_BALANCE);
+            VRFCoordinatorV2_5Mock(vrfCoordinatorV2_5).fundSubscription(
+                subscriptionId,
+                LINK_BALANCE
+            );
+        }
+        link.approve(vrfCoordinatorV2_5, LINK_BALANCE);
+        vm.stopPrank();
     }
 
     modifier raffleEntered() {
@@ -67,6 +77,13 @@ contract RaffleTest is Test, CodeConstants {
         } catch {
             _;
         }
+    }
+
+    modifier skipFork() {
+        if (block.chainid != 31337) {
+            return;
+        }
+        _;
     }
 
     function testRaffleInitializesInOpenState() public view {
@@ -257,7 +274,7 @@ contract RaffleTest is Test, CodeConstants {
 
     function testFulfillRandomWordsCanOnlyBeCalledAfterPerformUpkeep(
         uint256 randomRequestId
-    ) public raffleEntered onlyOnDeployedContracts {
+    ) public raffleEntered skipFork {
         // Arrange
         // Act / Assert
         vm.expectRevert(VRFCoordinatorV2_5Mock.InvalidRequest.selector);
@@ -271,11 +288,7 @@ contract RaffleTest is Test, CodeConstants {
         //..
     }
 
-    function testFulfillRandomWordsPicksAWinnerResetsAndSendsMoney()
-        public
-        raffleEntered
-        onlyOnDeployedContracts
-    {
+    function testFulfillRandomWordsPicksAWinnerResetsAndSendsMoney() public raffleEntered skipFork {
         address expectedWinner = address(1);
 
         // Arrange
@@ -307,7 +320,8 @@ contract RaffleTest is Test, CodeConstants {
             helperConfig.getConfig().link,
             helperConfig.getConfig().myAccount
         );
-*/
+        */
+
         VRFCoordinatorV2_5Mock(vrfCoordinatorV2_5).fulfillRandomWords(
             uint256(requestId),
             address(raffle)
@@ -326,7 +340,7 @@ contract RaffleTest is Test, CodeConstants {
         assert(endingTimeStamp > startingTimeStamp);
     }
 
-    function testHoelee() public raffleEntered onlyOnDeployedContracts {
+    function testHoelee() public raffleEntered {
         address expectedWinner = address(1);
 
         // Arrange
@@ -336,6 +350,7 @@ contract RaffleTest is Test, CodeConstants {
         for (uint256 i = startingIndex; i < startingIndex + additionalEntrances; i++) {
             address player = address(uint160(i));
             hoax(player, 1 ether); // deal 1 eth to the player
+            //vm.deal(player, 1 ether); // same
             raffle.enterRaffle{value: entranceFee}();
         }
 
@@ -352,7 +367,7 @@ contract RaffleTest is Test, CodeConstants {
         VRFCoordinatorV2_5Mock(vrfCoordinatorV2_5).fulfillRandomWords(
             uint256(requestId),
             address(raffle)
-        );
+        ); // InsuficientBalance()
 
         // Assert
         address recentWinner = raffle.getRecentWinner();

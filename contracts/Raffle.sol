@@ -26,7 +26,7 @@ pragma solidity ^0.8.19;
 ///// UPDATE IMPORTS TO V2.5 /////
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
-import "@chainlink/contracts/src/v0.8/vrf/dev/interfaces/IVRFCoordinatorV2Plus.sol";
+//import "@chainlink/contracts/src/v0.8/vrf/dev/interfaces/IVRFCoordinatorV2Plus.sol";
 import "@chainlink/contracts/src/v0.8/automation/interfaces/AutomationCompatibleInterface.sol";
 
 //import "hardhat/console.sol";
@@ -55,21 +55,19 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
     } // uint256 0 = OPEN, 1 = CALCULATING
 
     /* State Variables */
-    // Chainlink VRF Variable
-    IVRFCoordinatorV2Plus private immutable i_vrfCoordinator;
-    bytes32 private immutable i_gasLane;
     uint256 private immutable i_subscriptionId;
+    bytes32 private immutable i_gasLane;
     uint32 private immutable i_callbackGasLimit;
     uint16 private constant REQUEST_CONFIRMATIONS = 3;
     uint32 private constant NUM_WORDS = 1;
 
     // Lottery Variables
-    address payable[] private s_players;
-    RaffleState private s_raffleState;
-    address private s_recentWinner;
-    uint256 private s_lastTimeStamp;
     uint256 private immutable i_interval;
     uint256 private immutable i_entranceFee;
+    uint256 private s_lastTimeStamp;
+    address private s_recentWinner;
+    address payable[] private s_players;
+    RaffleState private s_raffleState;
 
     /* Event */
     event RaffleEnter(address indexed player);
@@ -85,7 +83,6 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
         uint256 entranceFee,
         uint32 callbackGasLimit
     ) VRFConsumerBaseV2Plus(vrfCoordinatorV2_5) {
-        i_vrfCoordinator = IVRFCoordinatorV2Plus(vrfCoordinatorV2_5);
         i_gasLane = gasLane;
         i_interval = interval;
         i_subscriptionId = subscriptionId;
@@ -109,65 +106,6 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
         // Emit an event when we update a dynamic array or mapping
         // Named events with the function name reversed
         emit RaffleEnter(msg.sender);
-    }
-
-    function requestRandomWinner() external returns (uint256 requestId) {
-        // Use Chainlink VRF V2 & Chainlink keeper
-        // https://docs.chain.link/vrf/v2/subscription/examples/get-a-random-number
-        // 0xb91d9cab0193d3cda599df11c4889f89c4a9fef9ec403de158ea67ce1f3a9e26
-        /**
-         * Create subscription at https://vrf.chain.link/ (MetaMask #1)
-         * Add Fund To The Created Subsciption Contract (MetaMask #2)
-         * Add Consumer
-         *     Get Subscription ID
-         *     Open Remix To Prepare Deploy Consumer Contract https://docs.chain.link/vrf/v2-5/migration-from-v2
-         *     Change To Correct gwei limit hash address at https://docs.chain.link/vrf/v2/subscription/supported-networks
-         *     Adjust Setting - random words count, confirmation blocks etc.
-         *     Insert Subscription ID - v2 is uint64 BUT **v2.5 is uint256**
-         *     Deploy And Get hash address (MetaMask #3)
-         *     Insert in chainlink consumer (Metamask #4)
-         * Ready to use, record down the consumer contract address
-         *         *
-         * v2.5 uint256 Subscription ID - 54852953177758767717007928774683925681326589777506065303357242036079980899870
-         * Admin Contract Creator address - 0xc9445e993daea4ba3f1fe1080f0f6f8c46b4d967
-         * Consumer address - 0x22eec58ce2cee446051337d71d59c89cb004d1c7
-         * Admin Approval Contract address - 0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B
-         */
-        /*
-        // Deprecated, Now V2.5 insteads of V2
-        i_vrfCoordinator.requestRandomWords(
-            i_gasLane,
-            i_subscriptionId,
-            REQUEST_CONFIRMATIONS,
-            i_callbackGasLimit,
-            NUM_WORDS
-        );
-        */
-        if ((block.timestamp - s_lastTimeStamp) <= i_interval) {
-            revert Raffle__IntervalNotPassed();
-        }
-        s_raffleState = RaffleState.CALCULATING;
-
-        // Prepare the ExtraArgs structure
-        VRFV2PlusClient.ExtraArgsV1 memory extraArgsV1 = VRFV2PlusClient.ExtraArgsV1({
-            nativePayment: true // Set to true or false depending on your use case
-        });
-
-        // Encode ExtraArgs to bytes
-        bytes memory extraArgs = VRFV2PlusClient._argsToBytes(extraArgsV1);
-
-        // Request random words using the prepared structure
-        requestId = i_vrfCoordinator.requestRandomWords(
-            VRFV2PlusClient.RandomWordsRequest({
-                keyHash: i_gasLane,
-                subId: i_subscriptionId,
-                requestConfirmations: REQUEST_CONFIRMATIONS,
-                callbackGasLimit: i_callbackGasLimit,
-                numWords: NUM_WORDS,
-                extraArgs: extraArgs
-            })
-        );
-        emit RequestedRaffleWinner(requestId); // Redundant, because i_vrfCoordinator do it same
     }
 
     /**
@@ -225,11 +163,71 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
             extraArgs: extraArgs
         });
 
+        // The s_vrfCoordinator is from override VRFConsumerBaseV2Plus
         // Request random words using the prepared structure
-        uint256 requestId = i_vrfCoordinator.requestRandomWords(req);
+        uint256 requestId = s_vrfCoordinator.requestRandomWords(req);
 
         // Quiz... is this redundant?
         emit RequestedRaffleWinner(requestId);
+    }
+
+    function requestRandomWinner() external returns (uint256 requestId) {
+        // Use Chainlink VRF V2 & Chainlink keeper
+        // https://docs.chain.link/vrf/v2/subscription/examples/get-a-random-number
+        // 0xb91d9cab0193d3cda599df11c4889f89c4a9fef9ec403de158ea67ce1f3a9e26
+        /**
+         * Create subscription at https://vrf.chain.link/ (MetaMask #1)
+         * Add Fund To The Created Subsciption Contract (MetaMask #2)
+         * Add Consumer
+         *     Get Subscription ID
+         *     Open Remix To Prepare Deploy Consumer Contract https://docs.chain.link/vrf/v2-5/migration-from-v2
+         *     Change To Correct gwei limit hash address at https://docs.chain.link/vrf/v2/subscription/supported-networks
+         *     Adjust Setting - random words count, confirmation blocks etc.
+         *     Insert Subscription ID - v2 is uint64 BUT **v2.5 is uint256**
+         *     Deploy And Get hash address (MetaMask #3)
+         *     Insert in chainlink consumer (Metamask #4)
+         * Ready to use, record down the consumer contract address
+         *         *
+         * v2.5 uint256 Subscription ID - 54852953177758767717007928774683925681326589777506065303357242036079980899870
+         * Admin Contract Creator address - 0xc9445e993daea4ba3f1fe1080f0f6f8c46b4d967
+         * Consumer address - 0x22eec58ce2cee446051337d71d59c89cb004d1c7
+         * Admin Approval Contract address - 0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B
+         */
+        /*
+        // Deprecated, Now V2.5 insteads of V2
+        i_vrfCoordinator.requestRandomWords(
+            i_gasLane,
+            i_subscriptionId,
+            REQUEST_CONFIRMATIONS,
+            i_callbackGasLimit,
+            NUM_WORDS
+        );
+        */
+        if ((block.timestamp - s_lastTimeStamp) <= i_interval) {
+            revert Raffle__IntervalNotPassed();
+        }
+        s_raffleState = RaffleState.CALCULATING;
+
+        // Prepare the ExtraArgs structure
+        VRFV2PlusClient.ExtraArgsV1 memory extraArgsV1 = VRFV2PlusClient.ExtraArgsV1({
+            nativePayment: true // Set to true or false depending on your use case
+        });
+
+        // Encode ExtraArgs to bytes
+        bytes memory extraArgs = VRFV2PlusClient._argsToBytes(extraArgsV1);
+
+        // Request random words using the prepared structure
+        requestId = s_vrfCoordinator.requestRandomWords(
+            VRFV2PlusClient.RandomWordsRequest({
+                keyHash: i_gasLane,
+                subId: i_subscriptionId,
+                requestConfirmations: REQUEST_CONFIRMATIONS,
+                callbackGasLimit: i_callbackGasLimit,
+                numWords: NUM_WORDS,
+                extraArgs: extraArgs
+            })
+        );
+        emit RequestedRaffleWinner(requestId); // Redundant, because i_vrfCoordinator do it same
     }
 
     /*
