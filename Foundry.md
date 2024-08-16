@@ -46,6 +46,8 @@ Usage
     forge script script/DeployContract.s.sol  --rpc-url HTTP://127.0.0.1:7545 --broadcast --account localAccountName
     forge snapshot
         See Gas Usage For Each Function
+    forge test --mt testFunctionName --fork-url $SEPOLIA_RPC_URL -vvvv
+        Test with Testnet & Mainnet, access latest data without affecting the blockchain, no cost needed
 ```
 
 ### Usage of cast:

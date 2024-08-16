@@ -68,18 +68,8 @@ contract RaffleTest is Test, CodeConstants {
         _;
     }
 
-    modifier onlyOnDeployedContracts() {
-        if (block.chainid == 31337) {
-            return;
-        }
-        try vm.activeFork() returns (uint256) {
-            return;
-        } catch {
-            _;
-        }
-    }
-
     modifier skipFork() {
+        // Testnet cannot test with Mock, don't have Mock control
         if (block.chainid != 31337) {
             return;
         }
@@ -340,7 +330,7 @@ contract RaffleTest is Test, CodeConstants {
         assert(endingTimeStamp > startingTimeStamp);
     }
 
-    function testHoelee() public raffleEntered {
+    function testHoelee() public raffleEntered skipFork {
         address expectedWinner = address(1);
 
         // Arrange
